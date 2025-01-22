@@ -24,13 +24,16 @@ n = int(0.9 * len(data))
 train_data = data[:n]
 val_data = data[n:]
 
-batch_size = 32
+# batch_size = 32
+# block_size = 8
+batch_size = 4
 block_size = 8
+# n_embd = 32
+n_embd = 12
 max_iters = 5000
 eval_interval = 500
 learning_rate = 1e-3
 eval_iters = 200
-n_embd = 32
 train_data[:block_size+1]
 
 
@@ -65,6 +68,8 @@ class Head(nn.Module):
     
     def __init__(self, head_size):
         super().__init__()
+        print(f"Head n_embd {n_embd}")
+        print(f"Head head_size {head_size}")
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
