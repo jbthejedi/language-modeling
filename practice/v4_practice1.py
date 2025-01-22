@@ -6,6 +6,27 @@ import torch
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 torch.manual_seed(1337)
 
+
+class Block(nn.Module):
+    def __init__(self, n_embd, n_head, block_size):
+        super().__init__()
+        self.sa = MultiHeadAttention(
+            num_heads=n_head,
+            n_embd=n_embd,
+            head_size=n_embd // n_head,
+            block_size=block_size,
+        )
+        self.ffwd = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+        )
+
+    def forward(self, x):
+        x = x + self.sa(x)
+        x = x + self.ffwd(x)
+        return x
+        
         
 class Head(nn.Module):
     def __init__(self, n_embd, head_size, block_size):
@@ -42,9 +63,12 @@ class MultiHeadAttention(nn.Module):
                 block_size=block_size,
             ) for _ in range(num_heads)
         ])
+        self.proj = nn.Linear(n_embd, n_embd)
 
     def forward(self, x):
-        return torch.cat([head(x) for head in self.heads], dim=-1)
+        x = torch.cat([head(x) for head in self.heads], dim=-1)
+        x = self.proj(x)
+        return x
 
         
 class LanguageModel(nn.Module):
@@ -54,15 +78,10 @@ class LanguageModel(nn.Module):
         
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.sa_heads = MultiHeadAttention(
-            num_heads=num_heads,
-            n_embd=n_embd,
-            head_size=n_embd // num_heads,
-            block_size=block_size,
-        )
-        self.ffwd = nn.Sequential(
-            nn.Linear(n_embd, n_embd),
-            nn.ReLU(),
+        self.block = nn.Sequential(
+            Block(n_embd, n_head=4, block_size=block_size),
+            Block(n_embd, n_head=4, block_size=block_size),
+            Block(n_embd, n_head=4, block_size=block_size),
         )
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
 
@@ -71,8 +90,9 @@ class LanguageModel(nn.Module):
         tok_emb = self.token_embedding_table(idx)
         pos_emb = self.position_embedding_table(torch.arange(T, device=DEVICE))
         x = tok_emb + pos_emb
-        x = self.sa_heads(x)
-        x = self.ffwd(x)
+        x = self.block(x)
+        # x = self.sa_heads(x)
+        # x = self.ffwd(x)
         logits = self.lm_head(x)
         
         if targets is None:
