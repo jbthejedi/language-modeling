@@ -6,6 +6,7 @@ import torch
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 torch.manual_seed(1337)
 
+# Batch-norm normalizes mn, std for each feature
 
 class Block(nn.Module):
     def __init__(self, n_embd, n_head, block_size):
