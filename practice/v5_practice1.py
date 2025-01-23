@@ -6,6 +6,7 @@ from pathlib import Path
 
 torch.manual_seed(1337)
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'DEVICE {DEVICE}')
 dropout_p = 0.2
 
 class Data:
@@ -146,13 +147,15 @@ class LanguageModel(nn.Module):
             Block(n_embd, block_size, n_heads),
             Block(n_embd, block_size, n_heads),
             Block(n_embd, block_size, n_heads),
+            Block(n_embd, block_size, n_heads),
         )
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
+        device = idx.device
         B,T = idx.shape
         tok_emb = self.token_embedding_table(idx)
-        pos_emb = self.pos_embedding_table(torch.arange(T, device=DEVICE))
+        pos_emb = self.pos_embedding_table(torch.arange(T, device=device))
         x = tok_emb + pos_emb
         # x = self.sa_heads(x)
         x = self.trans_blocks(x)
@@ -167,8 +170,9 @@ class LanguageModel(nn.Module):
         return logits, losses
 
     def generate(self, idx, max_new_tokens=1000):
+        idx.to(DEVICE)
         for _ in range(max_new_tokens):
-            idx_cond = idx[:, -self.block_size:]
+            idx_cond = idx[:, -self.block_size:].to(DEVICE)
             logits, _ = self(idx_cond)
             logits = logits[:,-1,:]
             probs = F.softmax(logits, dim=-1)
@@ -182,16 +186,17 @@ if __name__ == '__main__':
     
     # import v5_practice1 as vp
     
-    # with Path("/root/language-modeling/input.txt").open("r", encoding="utf-8") as f:
-    with Path("../input.txt").open("r", encoding="utf-8") as f:
+    with Path("/root/language-modeling/input.txt").open("r", encoding="utf-8") as f:
+    # with Path("../input.txt").open("r", encoding="utf-8") as f:
         text = f.read()
     
-    block_size = 8
-    batch_size = 32
-    n_heads = 4
-    n_embd = 32
+    batch_size = 64
+    block_size = 32
+    n_embd = 384
+    n_heads = 8
+
     max_iters = 4000
-    eval_iters = 200
+    eval_iters = 500
     
     data = Data(text)
     data.block_size = block_size
@@ -220,7 +225,7 @@ if __name__ == '__main__':
         losses.backward()
         optimizer.step()
     
-    out = m.generate(torch.zeros((1, 1), dtype=torch.long))
+    out = m.generate(torch.zeros((1, 1), dtype=torch.long).to(DEVICE))
     print("".join(data.decode(out[0].tolist())))
     
     
