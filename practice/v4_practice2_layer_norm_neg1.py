@@ -65,8 +65,8 @@ class LayerNorm:
         self.beta = torch.zeros(dim)
 
     def __call__(self, x):
-        xmean = x.mean(1, keepdim=True)
-        xvar = x.var(1, keepdim=True)
+        xmean = x.mean(-1, keepdim=True)
+        xvar = x.var(-1, keepdim=True)
         xhat = (x - xmean) / torch.sqrt(xvar + self.eps)
         self.out = self.gamma * xhat + self.beta
 
@@ -135,11 +135,11 @@ class Block(nn.Module):
         
     def forward(self, x):
         # fork off, do some communication, rejoin
-        # x = self.ln1(x)
+        x = self.ln1(x)
         x = x + self.sa(x) 
         
         # fork off, do some computation, rejoin
-        # x = self.ln2(x)
+        x = self.ln2(x)
         x = x + self.ffwd(x)
         
         return x

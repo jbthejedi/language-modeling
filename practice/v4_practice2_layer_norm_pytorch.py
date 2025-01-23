@@ -47,34 +47,16 @@ class Data:
         return out
 
 
-# class LayerNorm(nn.Module):
-#     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
+class LayerNorm(nn.Module):
+    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
 
-#     def __init__(self, ndim, bias):
-#         super().__init__()
-#         self.weight = nn.Parameter(torch.ones(ndim))
-#         self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+    def __init__(self, ndim, bias):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
 
-#     def forward(self, input):
-#         return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
-
-class LayerNorm:
-    def __init__(self, dim, eps=1e-5, momentum=0.1):
-        self.eps = eps
-        self.gamma = torch.ones(dim)
-        self.beta = torch.zeros(dim)
-
-    def __call__(self, x):
-        xmean = x.mean(1, keepdim=True)
-        xvar = x.var(1, keepdim=True)
-        xhat = (x - xmean) / torch.sqrt(xvar + self.eps)
-        self.out = self.gamma * xhat + self.beta
-
-        # print(f"ln.shape {self.out.shape}")
-        return self.out
-
-    def parameters(self):
-        return [self.gamma, self.beta]
+    def forward(self, input):
+        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
 
 class Head(nn.Module):
     def __init__(
@@ -130,16 +112,16 @@ class Block(nn.Module):
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
         )
-        self.ln1 = LayerNorm(n_embd)
-        self.ln2 = LayerNorm(n_embd)
+        self.ln1 = LayerNorm(n_embd, bias=True)
+        self.ln2 = LayerNorm(n_embd, bias=True)
         
     def forward(self, x):
         # fork off, do some communication, rejoin
-        # x = self.ln1(x)
+        x = self.ln1(x)
         x = x + self.sa(x) 
         
         # fork off, do some computation, rejoin
-        # x = self.ln2(x)
+        x = self.ln2(x)
         x = x + self.ffwd(x)
         
         return x

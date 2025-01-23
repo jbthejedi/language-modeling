@@ -1,6 +1,6 @@
 import torch
 
-class BatchNorm1d:
+class LayerNorm:
     def __init__(self, dim, eps=1e-5, momentum=0.1):
         self.eps = eps
         self.gamma = torch.ones(dim)
