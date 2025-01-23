@@ -165,22 +165,66 @@ class LanguageModel(nn.Module):
             idx = torch.cat([idx, idx_next], dim=1)
         return idx
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
+if __name__ == '__main__':
+    # DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # torch.manual_seed(1337)
+    
+    # import v5_practice1 as vp
+    
+    with Path("../input.txt").open("r", encoding="utf-8") as f:
+        text = f.read()
+    
+    block_size = 8
+    batch_size = 32
+    n_heads = 4
+    n_embd = 32
+    max_iters = 4000
+    eval_iters = 200
+    
+    data = Data(text)
+    data.block_size = block_size
+    data.batch_size = batch_size
+    data.n_embd = n_embd
+    
+    # print("".join(data.decode(data.encode("hi there"))))
+    # xb, yb = data.get_batch('train')
+    # print(xb, yb)
+    
+    # m = vp.LanguageModel(n_embd, block_size, data.vocab_size, n_heads)
+    # out = m.generate(torch.zeros((1, 1), dtype=torch.long))
+    # # out
+    # print("".join(data.decode(out[0].tolist())))
+    
+    m = LanguageModel(n_embd, block_size, data.vocab_size, n_heads)
+    m = m.to(DEVICE)
+    optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
+    for iter_ in range(max_iters):
+        if iter_ % eval_iters == 0:
+            out = data.estimate_loss(m, eval_iters)
+            print(f"train loss {out['train']} val loss {out['val']}")
+        xb, yb = data.get_batch('train')
+        logits, losses = m(xb, yb)
+        optimizer.zero_grad()
+        losses.backward()
+        optimizer.step()
+    
+    out = m.generate(torch.zeros((1, 1), dtype=torch.long))
+    print("".join(data.decode(out[0].tolist())))
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+            
