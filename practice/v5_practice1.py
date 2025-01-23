@@ -58,8 +58,8 @@ class Block(nn.Module):
             nn.Linear(4 * n_embd, n_embd),
             nn.Dropout(p=dropout_p)
         )
-        self.ln1 = LayerNorm(n_embd)
-        self.ln2 = LayerNorm(n_embd)
+        self.ln1 = LayerNorm(n_embd, bias=True)
+        self.ln2 = LayerNorm(n_embd, bias=True)
 
     def forward(self, x):
         x = self.ln1(x)
@@ -90,23 +90,34 @@ class Head(nn.Module):
         out = wei @ v
         
         return out
-
-class LayerNorm(nn.Module):
-    def __init__(self, dim, eps=1e-5, momentum=0.1):
-        super().__init__()
-        self.eps = eps
-        self.gamma = torch.ones(dim)
-        self.beta = torch.zeros(dim)
-
-    def forward(self, x):
-        xmean = x.mean(-1, keepdims=True)
-        xvar = x.var(-1, keepdims=True)
-        xhat = (x - xmean) / torch.sqrt(xvar + self.eps)
-        self.out = xhat*self.gamma + self.beta
-        return self.out
         
-    def parameters(self):
-        return [self.gamma, self.beta]
+class LayerNorm(nn.Module):
+    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
+
+    def __init__(self, ndim, bias):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+
+    def forward(self, input):
+        return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
+
+# class LayerNorm(nn.Module):
+#     def __init__(self, dim, eps=1e-5, momentum=0.1):
+#         super().__init__()
+#         self.eps = eps
+#         self.gamma = torch.ones(dim)
+#         self.beta = torch.zeros(dim)
+
+#     def forward(self, x):
+#         xmean = x.mean(-1, keepdims=True)
+#         xvar = x.var(-1, keepdims=True)
+#         xhat = (x - xmean) / torch.sqrt(xvar + self.eps)
+#         self.out = xhat*self.gamma + self.beta
+#         return self.out
+        
+#     def parameters(self):
+#         return [self.gamma, self.beta]
         
 class MultiHeadAttention(nn.Module):
     def __init__(self, n_embd, block_size, n_heads):
@@ -171,6 +182,7 @@ if __name__ == '__main__':
     
     # import v5_practice1 as vp
     
+    # with Path("/root/language-modeling/input.txt").open("r", encoding="utf-8") as f:
     with Path("../input.txt").open("r", encoding="utf-8") as f:
         text = f.read()
     
