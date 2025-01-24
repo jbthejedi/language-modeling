@@ -203,7 +203,7 @@ def main():
     out = m.generate(torch.zeros((1, 1), dtype=torch.long).to(device))
     print("".join(data.decode(out[0].tolist())))
 
-if __name__ == 'main':
+if __name__ == '__main__':
     main()
 
 
