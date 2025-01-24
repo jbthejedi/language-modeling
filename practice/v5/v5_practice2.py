@@ -24,8 +24,8 @@ class Data:
         
         data = torch.tensor(self.encode(config.text), dtype=torch.long)
         n = int(0.9 * len(data))
-        self.train_data = data[n:]
-        self.val_data = data[:n]
+        self.train_data = data[:n]
+        self.val_data = data[n:]
 
     def get_batch(self, split, config):
         data = self.train_data if split == 'train' else self.val_data
@@ -38,6 +38,7 @@ class Data:
     @torch.no_grad
     def estimate_loss(self, model, config):
         out = {}
+        model.eval()
         for split in ['train', 'val']:
             Losses = torch.zeros(config.eval_iters)
             for i in range(config.eval_iters):
@@ -45,6 +46,7 @@ class Data:
                 logits, losses = model(X, Y)
                 Losses[i] = losses.item()
             out[split] = Losses.mean()
+        model.train()
         return out
 
 class Head(nn.Module):
@@ -127,6 +129,7 @@ class LanguageModel(nn.Module):
             Block(config),
             Block(config),
             Block(config),
+            Block(config),
         )
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size)
 
@@ -166,9 +169,9 @@ class Config:
     eval_iters: int = 200
     text: str = ""
     
-    cw_size: int = 8
-    batch_size: int = 4
-    n_embd: int = 32
+    cw_size: int = 32
+    batch_size: int = 64
+    n_embd: int = 384
     n_heads: int = 4
     vocab_size: int = None
 
@@ -177,8 +180,8 @@ class Config:
     
 def main():
     config = Config()
-    # with Path("/root/language-modeling/practice/v5/input.txt").open("r", encoding="utf-8") as f:
-    with Path("../../input.txt").open("r", encoding="utf-8") as f:
+    with Path("/workspace/language-modeling/input.txt").open("r", encoding="utf-8") as f:
+    # with Path("../../input.txt").open("r", encoding="utf-8") as f:
         config.text = f.read()
     data = Data(config)
 

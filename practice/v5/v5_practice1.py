@@ -193,7 +193,7 @@ if __name__ == '__main__':
     batch_size = 64
     block_size = 32
     n_embd = 384
-    n_heads = 8
+    n_heads = 4
 
     max_iters = 4000
     eval_iters = 500
