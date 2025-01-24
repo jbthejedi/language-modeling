@@ -56,6 +56,7 @@ class Head(nn.Module):
         
         tril = torch.tril(torch.ones(config.cw_size, config.cw_size))
         self.register_buffer('tril', tril)
+        self.dropout = nn.Dropout(p=config.p_dropout)
 
     def forward(self, x):
         B,T,C = x.shape
@@ -66,6 +67,7 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2, -1) * C**-0.5
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
         out = wei @ v
         
         return out
@@ -75,9 +77,13 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         head_size = config.n_embd // config.n_heads
         self.sa_heads = nn.ModuleList([Head(config, head_size) for _ in range(config.n_heads)])
+        self.proj = nn.Linear(config.n_embd, config.n_embd)
+        self.dropout = nn.Dropout(p=config.p_dropout)
 
     def forward(self, x):
         x = torch.cat([head(x) for head in self.sa_heads], dim=-1)
+        x = self.proj(x)
+        x = self.dropout(x)
         return x
 
 class Block(nn.Module):
@@ -85,14 +91,31 @@ class Block(nn.Module):
         super().__init__()
         self.sa_heads = MultiHeadAttention(config)
         self.ffwd = nn.Sequential(
-            nn.Linear(config.n_embd, config.n_embd),
+            nn.Linear(config.n_embd, 4 * config.n_embd),
             nn.ReLU(),
+            nn.Linear(4 * config.n_embd, config.n_embd),
+            nn.Dropout(p=config.p_dropout),
         )
+        self.ln1 = LayerNorm(config.n_embd, config.bias)
+        self.ln2 = LayerNorm(config.n_embd, config.bias)
 
     def forward(self, x):
-        x = self.sa_heads(x)
-        x = self.ffwd(x)
+        x = self.ln1(x) 
+        x = x + self.sa_heads(x)
+        x = self.ln2(x) 
+        x = x + self.ffwd(x)
+        
         return x
+
+class LayerNorm(nn.Module):
+    def __init__(self, ndim, bias):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(ndim))
+        self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
+
+    def forward(self, x):
+        return F.layer_norm(x, self.weight.shape, self.weight, self.bias, 1e-5)
+
 
 class LanguageModel(nn.Module):
     def __init__(self, config):
@@ -148,6 +171,9 @@ class Config:
     n_embd: int = 32
     n_heads: int = 4
     vocab_size: int = None
+
+    p_dropout : float = 0.2
+    bias : bool = True
     
 def main():
     config = Config()
