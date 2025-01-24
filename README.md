@@ -1,7 +1,7 @@
 # language-modeling
-Install vim
 apt update
 apt install vim -y
+apt install screen -y
 
 install gh client with script
 clone repo
