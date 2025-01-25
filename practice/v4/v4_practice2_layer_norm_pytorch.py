@@ -165,7 +165,41 @@ class LanguageModel(nn.Module):
             idx = torch.cat([idx, idx_next], dim=1)
         return idx
 
+def main():
+   with Path("../input.txt").open("r", encoding="utf-8") as f:
+    text = f.read()
+
+    batch_size = 32
+    block_size = 8
+    n_embd = 32
+    max_iters = 4000
+    # max_iters = 1000
+    eval_iters = 200
     
+    data = Data(text)
+    data.block_size = block_size
+    data.batch_size = batch_size
+    
+    m = LanguageModel(
+        data.vocab_size,
+        n_embd=n_embd,
+        block_size=data.block_size
+    )
+    
+    optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
+    # m.train()
+    for _iter in range(max_iters):
+        if _iter % eval_iters == 0:
+            out = data.estimate_loss(m, eval_iters)
+            print(f"train loss {out['train']} val loss {out['val']}")
+        xb, yb = data.get_batch('train')
+        logits, losses = m(xb, yb)
+        optimizer.zero_grad(set_to_none=True)
+        losses.backward()
+        optimizer.step()
+    
+    out = m.generate(torch.zeros((1, 1), dtype=torch.long))
+    print("".join(data.decode(out[0].tolist()))) 
 
 
 

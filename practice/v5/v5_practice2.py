@@ -165,14 +165,19 @@ class LanguageModel(nn.Module):
 
 @dataclass
 class Config:
-    max_iters: int = 5000
+    max_iters: int = 4000
     eval_iters: int = 200
     text: str = ""
     
-    cw_size: int = 32
-    batch_size: int = 64
-    n_embd: int = 384
+    cw_size: int = 8
+    batch_size: int = 4
+    n_embd: int = 32
     n_heads: int = 4
+    
+    # cw_size: int = 32
+    # batch_size: int = 64
+    # n_embd: int = 384
+    # n_heads: int = 4
     vocab_size: int = None
 
     p_dropout : float = 0.2

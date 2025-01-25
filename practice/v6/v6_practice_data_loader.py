@@ -15,6 +15,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 class Head(nn.Module):
     def __init__(self, config, head_size):
         super().__init__()
+        self.config = config
         self.query = nn.Linear(config.n_embd, head_size)
         self.key = nn.Linear(config.n_embd, head_size)
         self.value = nn.Linear(config.n_embd, head_size)
@@ -32,7 +33,8 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2, -1) * C**-0.5
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
-        wei = self.dropout(wei)
+        if self.config.include_dropout:
+            wei = self.dropout(wei)
         out = wei @ v
         
         return out
@@ -40,6 +42,7 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.config = config
         head_size = config.n_embd // config.n_heads
         self.sa_heads = nn.ModuleList([Head(config, head_size) for _ in range(config.n_heads)])
         self.proj = nn.Linear(config.n_embd, config.n_embd)
@@ -48,7 +51,8 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x):
         x = torch.cat([head(x) for head in self.sa_heads], dim=-1)
         x = self.proj(x)
-        x = self.dropout(x)
+        if self.config.include_dropout:
+            x = self.dropout(x)
         return x
 
 class Block(nn.Module):
@@ -172,9 +176,12 @@ class Data:
 
     @torch.no_grad()
     def estimate_loss(self, model, config):
+        """
+        To estimate the trian/val loss, we just average
+        n=eval_iters number of losses respectively
+        """
         out = {}
         model.eval()
-        # print("estimate_loss")
         for split in ['train', 'val']:
             loader = self.train_loader if split == 'train' else self.val_loader
             losses = []
@@ -191,9 +198,12 @@ class Data:
             
 @dataclass
 class Config:
-    max_iters: int = 5000
-    eval_iters: int = 200
     text: str = ""
+    
+    max_iters: int = 1000
+    eval_iters: int = 200
+    # n_steps: int = 100
+    n_steps: int = 20
     
     # cw_size: int = 16
     # batch_size: int = 64
@@ -209,6 +219,9 @@ class Config:
     
     vocab_size: int = None
 
+    # include_dropout : bool = False
+    include_dropout : bool = False
+    
     p_dropout : float = 0.2
     bias : bool = True
     
@@ -226,20 +239,20 @@ def main():
     # Train
     optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
     for iter_ in range(config.max_iters):
-        # print("iter_")
-        if iter_ % config.eval_iters == 0:
-            out = data.estimate_loss(m, config)
-            print(f"Iter {iter_}: train loss {out['train']:.4f} val loss {out['val']:.4f}")
-        
+        # if iter_ % config.eval_iters == 0:
+        out = data.estimate_loss(m, config)
+        print(f"Iter {iter_}: train loss {out['train']:.4f} val loss {out['val']:.4f}")
+            
         # Iterate over the DataLoader
-        for xb, yb in data.train_loader:
+        for step, (xb, yb) in enumerate(data.train_loader):
             xb, yb = xb.to(device), yb.to(device)
             logits, loss = m(xb, yb)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
-            break  # Remove this break to train on the entire epoch
+            if step == config.n_steps: # step == 1 would be original implementation.
+                # print(f"n_step: {step}")
+                break  # Remove this break to train on the entire epoch
         
         # Optionally, implement additional training logic here
 
