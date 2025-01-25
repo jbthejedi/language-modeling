@@ -88,12 +88,7 @@ class LanguageModel(nn.Module):
         self.config = config
         self.tok_embedding_table = nn.Embedding(config.vocab_size, config.n_embd)
         self.pos_embedding_table = nn.Embedding(config.cw_size, config.n_embd)
-        self.sa_blocks = nn.ModuleList(Block(config))
-        # self.sa_blocks = nn.Sequential(
-        #     Block(config),
-        #     Block(config),
-        #     Block(config),
-        # )
+        self.sa_blocks = nn.ModuleList([Block(config) for _ in range(config.n_blocks)])
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size)
 
     def forward(self, idx, targets=None):
@@ -101,7 +96,8 @@ class LanguageModel(nn.Module):
         tok_emb = self.tok_embedding_table(idx)
         pos_emb = self.pos_embedding_table(torch.arange(T, device=device))
         x = tok_emb + pos_emb
-        x = self.sa_blocks(x)
+        for block in self.sa_blocks:
+            x = block(x)
         logits = self.lm_head(x)
         
         if targets == None:
@@ -203,11 +199,14 @@ class Config:
     # batch_size: int = 64
     # n_embd: int = 384
     # n_heads: int = 4
+    # n_blocks: int = 4
     
     cw_size: int = 8
     batch_size: int = 8
     n_embd: int = 32
     n_heads: int = 4
+    n_blocks: int = 4
+    
     vocab_size: int = None
 
     p_dropout : float = 0.2
