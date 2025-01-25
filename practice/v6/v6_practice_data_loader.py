@@ -88,11 +88,12 @@ class LanguageModel(nn.Module):
         self.config = config
         self.tok_embedding_table = nn.Embedding(config.vocab_size, config.n_embd)
         self.pos_embedding_table = nn.Embedding(config.cw_size, config.n_embd)
-        self.sa_blocks = nn.Sequential(
-            Block(config),
-            Block(config),
-            Block(config),
-        )
+        self.sa_blocks = nn.ModuleList(Block(config))
+        # self.sa_blocks = nn.Sequential(
+        #     Block(config),
+        #     Block(config),
+        #     Block(config),
+        # )
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size)
 
     def forward(self, idx, targets=None):
@@ -198,7 +199,7 @@ class Config:
     eval_iters: int = 200
     text: str = ""
     
-    # cw_size: int = 32
+    # cw_size: int = 16
     # batch_size: int = 64
     # n_embd: int = 384
     # n_heads: int = 4
@@ -215,6 +216,7 @@ class Config:
 def main():
     config = Config()
     with Path("/Users/justinbarry/projects/language-modeling/input.txt").open("r", encoding="utf-8") as f:
+    # with Path("/workspace/language-modeling/input.txt").open("r", encoding="utf-8") as f:
         config.text = f.read()
     data = Data(config)
 
