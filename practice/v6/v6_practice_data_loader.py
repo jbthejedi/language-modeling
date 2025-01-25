@@ -32,7 +32,7 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2, -1) * C**-0.5
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
-        # wei = self.dropout(wei)
+        wei = self.dropout(wei)
         out = wei @ v
         
         return out
@@ -48,7 +48,7 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x):
         x = torch.cat([head(x) for head in self.sa_heads], dim=-1)
         x = self.proj(x)
-        # x = self.dropout(x)
+        x = self.dropout(x)
         return x
 
 class Block(nn.Module):
@@ -59,7 +59,7 @@ class Block(nn.Module):
             nn.Linear(config.n_embd, 4 * config.n_embd),
             nn.ReLU(),
             nn.Linear(4 * config.n_embd, config.n_embd),
-            # nn.Dropout(p=config.p_dropout),
+            nn.Dropout(p=config.p_dropout),
         )
         self.ln1 = LayerNorm(config.n_embd, config.bias)
         self.ln2 = LayerNorm(config.n_embd, config.bias)
