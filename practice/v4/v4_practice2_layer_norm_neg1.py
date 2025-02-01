@@ -49,8 +49,8 @@ class Data:
 class LayerNorm:
     def __init__(self, dim, eps=1e-5, momentum=0.1):
         self.eps = eps
-        self.gamma = torch.ones(dim)
-        self.beta = torch.zeros(dim)
+        self.gamma = nn.Parameter(torch.ones(dim))
+        self.beta = nn.Parameter(torch.zeros(dim))
 
     def __call__(self, x):
         xmean = x.mean(-1, keepdim=True)
