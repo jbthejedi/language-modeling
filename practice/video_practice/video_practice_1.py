@@ -7,6 +7,10 @@ from tqdm import tqdm
 from dataclasses import dataclass
 import mytransformer as mt
 
+from nltk.tokenize import word_tokenize
+import nltk
+nltk.download('punkt')
+
 seed = 1337
 torch.manual_seed(seed)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -31,22 +35,33 @@ class Config:
 
 class Data:
     def __init__(self, text, config):
-        vocab = sorted(list(set(text)))
-        self.itos = { ch: i for i, ch in enumerate(vocab)}
-        self.stoi = { i: ch for i, ch in enumerate(vocab)}
+        tokens = word_tokenize(text)
+        # vocab = sorted(list(set(text)))
+        vocab = sorted(list(set(tokens)))
+        # self.itos = { ch: i for ik, ch in enumerate(vocab)}
+        # self.stoi = { i: ch for i, ch in enumerate(vocab)}
+        self.itos = { token: i for i, token in enumerate(vocab)}
+        self.stoi = { i: token for i, token in enumerate(vocab)}
         config.vocab = vocab
         config.vocab_size = len(vocab)
 
-        data = torch.tensor(self.encode(text), dtype=torch.long)
+        token_ids = self.encode(tokens)
+        data = torch.tensor(token_ids, dtype=torch.long)
         n = int(config.train_split * len(data))
         self.train_data = data[:n]
         self.test_data = data[n:]
 
-    def encode(self, x):
-        return [self.itos[s] for s in x]
+    # def encode(self, x):
+    #     return [self.itos[s] for s in x]
 
-    def decode(self, x):
-        return [self.stoi[s] for s in x]
+    # def decode(self, x):
+    #     return [self.stoi[s] for s in x]
+
+    def encode(self, tokens):
+        return [self.itos[token] for token in tokens]
+
+    def decode(self, tokens):
+        return [self.stoi[token] for token in tokens]
         
     def get_batch(self, split, config):
         data = self.train_data if split == 'train' else self.test_data
