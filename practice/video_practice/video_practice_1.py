@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from pathlib import Path
 from tqdm import tqdm
 from dataclasses import dataclass
+import mytransformer as mt
 
 seed = 1337
 torch.manual_seed(seed)
@@ -14,19 +15,21 @@ print(f"Device {device}")
 
 @dataclass
 class Config:
-    max_iters : int = 10_000
+    max_iters : int = 5000
     eval_iters : int = 200
-    batch_size : int = 4
+    batch_size : int = 32
     n_emb : int = 32
-    cw_size : int = 8
-    n_embd : int = 32
+    cw_size : int = 16
+    n_embd : int = 64
+    n_head : int = 4
+    n_blocks : int = 2
+    p_dropout : float = 0.2
 
     vocab : str = None
     vocab_size : int = None
     train_split : float = 0.9
 
 class Data:
-
     def __init__(self, text, config):
         vocab = sorted(list(set(text)))
         self.itos = { ch: i for i, ch in enumerate(vocab)}
@@ -70,18 +73,24 @@ class Data:
 
         return out
 
-
 class LanguageModel(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.tok_emb = nn.Embedding(config.vocab_size, config.n_embd)
+        self.pos_emb = nn.Embedding(config.cw_size, config.n_embd)
+        self.transformer_blocks = nn.Sequential(
+            *[mt.TransformerBlock(config) for _ in range(config.n_blocks)]
+        )
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size)
 
     def forward(self, idx, targets=None):
         b, t = idx.shape
         tok_emb = self.tok_emb(idx) # (b, t, d)
-        logits = self.lm_head(tok_emb) # (b, t, v), where v = vocab_size
+        pos_emb = self.pos_emb(torch.arange(t))
+        x = tok_emb + pos_emb
+        x = self.transformer_blocks(x)
+        logits = self.lm_head(x) # (b, t, v), where v = vocab_size
 
         if targets is None:
             loss = None
@@ -131,6 +140,8 @@ def train_test_model(config : Config):
             loss.backward()
             optimizer.step()
 
+    tqdm.write(f"Final Loss {loss.item()}")
+
     # Test generate loop
     model.eval()
     in_tensor = torch.zeros((1, 1), dtype=torch.long)
@@ -138,14 +149,8 @@ def train_test_model(config : Config):
     # print(out_tensor)
     print("".join(data.decode(out_tensor[0].tolist())))
 
-
-
-def test_architecture(config : Config):
-    pass
-
 def main():
     config = Config
-    test_architecture(config)
     train_test_model(config)
 
 if __name__ == '__main__':

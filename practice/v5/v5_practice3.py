@@ -47,7 +47,7 @@ class LayerNorm(nn.Module):
         x_var = x.var(-1, keepdims=True)
         x_hat = (x - x_mean) / torch.sqrt(x_var + self.config.eps)
         out = x_hat * self.gamma + self.beta
-        
+;       
         return out
 
 class MultiHeadAttention(nn.Module):
