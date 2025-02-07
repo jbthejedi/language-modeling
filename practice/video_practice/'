@@ -19,9 +19,8 @@ print(f"Device {device}")
 
 @dataclass
 class Config:
-    max_iters : int = 1000
-    n_epochs : int = 10
-    eval_iters : int = 500
+    max_iters : int = 5000
+    eval_iters : int = 200
     batch_size : int = 32
     n_emb : int = 32
     cw_size : int = 16
@@ -128,46 +127,44 @@ class LanguageModel(nn.Module):
 
         return idx 
 
-def train_test_model(config: Config):
+def train_test_model(config : Config):
     with Path("../../input.txt").open("r", encoding="utf-8") as f:
         text = f.read()
 
-    # Instantiate new config and data
     config = Config()
     data = Data(text, config)
+
     model = LanguageModel(config)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    model.train()
+    with tqdm(range(config.max_iters), desc="Training", leave=False) as pbar:
+        for _ in range(config.n_epochs):
+            for iter_ in pbar:
+                # Estimate train/val loss
+                if iter_ % config.eval_iters == 0:
+                    out = data.estimate_loss(model, config)
 
-    for epoch in range(config.n_epochs):
-        model.train()
-        # Create a new tqdm progress bar for this epoch
-        epoch_bar = tqdm(range(config.max_iters),
-                         desc=f"Epoch {epoch+1}/{config.n_epochs}",
-                         position=0, leave=False)
-        for iter_ in epoch_bar:
-            # Every eval_iters iterations, compute and update evaluation loss info
-            if iter_ % config.eval_iters == 0:
-                out = data.estimate_loss(model, config)
-                epoch_bar.set_postfix(Train_Loss=f"{out['train']:.4f}",
-                                        Val_Loss=f"{out['val']:.4f}")
-            # Training step
-            xb, yb = data.get_batch('train', config)
-            optimizer.zero_grad()
-            logits, loss = model(xb, yb)
-            loss.backward()
-            optimizer.step()
-            # Optionally, you can update the description with current loss:
-            # epoch_bar.set_description(f"Epoch {epoch+1} | Loss {loss.item():.4f}")
-        epoch_bar.close()
+                # Forward pass
+                xb, yb = data.get_batch('train', config)
+                optimizer.zero_grad()
+                logits, loss = model(xb, yb)
 
-        # After each epoch, generate and print some text to monitor progress
-        model.eval()
-        in_tensor = torch.zeros((1, 1), dtype=torch.long).to(device)
-        out_tensor = model.generate(in_tensor, max_new_tokens=50)
-        generated_text = " ".join(data.decode(out_tensor[0].tolist()))
-        print(f"\nGenerated (epoch {epoch+1}):\n{generated_text}\n")
+                # Tqdm write progress bar
+                pbar.set_postfix(Train_Loss=out['train'], Val_Loss=out['val'])
+                
+                # Update weights
+                loss.backward()
+                optimizer.step()
 
-    print(f"Final Loss: {loss.item():.4f}")
+            # Test generate loop
+            model.eval()
+            in_tensor = torch.zeros((1, 1), dtype=torch.long)
+            out_tensor = model.generate(in_tensor)
+            # print(out_tensor)
+            print(" ".join(data.decode(out_tensor[0].tolist())))
+
+    tqdm.write(f"Final Loss {loss.item()}")
+
 
 def main():
     config = Config
