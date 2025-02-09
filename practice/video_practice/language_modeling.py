@@ -10,6 +10,8 @@ from pathlib import Path
 device = "cuda" if torch.cuda.is_available() else "cpu"
 seed = 1337
 torch.manual_seed(seed)
+print(f"Device {device}")
+print(f"Seed {seed}")
 
 @dataclass
 class Config:
