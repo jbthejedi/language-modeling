@@ -57,6 +57,7 @@ class Data:
             losses = torch.zeros(config.eval_iters)
             for i in range(config.eval_iters):
                 X, Y = self.get_batch(split, config)
+                X, Y = X.to(device), Y.to(device)
                 logits, loss = model(X, Y)
                 losses[i] = loss.item()
             out[split] = losses.mean()
@@ -130,7 +131,7 @@ def train_test_model(config : Config):
         optimizer.step()
         
     # Generate
-    in_tensor = torch.zeros((1, 1), dtype=torch.long)
+    in_tensor = torch.zeros((1, 1), dtype=torch.long).to(device)
     out_tensor = model.generate(in_tensor)
     print("".join(data.decode(out_tensor[0].tolist())))
 
