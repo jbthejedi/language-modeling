@@ -106,6 +106,9 @@ class LanguageModel(nn.Module):
         return idx
 
 def train_test_model(config : Config):
+    # To download the data, run the below in bash or jupyter notebook
+    # !wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+
     with Path("../../input.txt").open("r", encoding="utf-8") as f:
         text = f.read()
     data = Data(text, config)
