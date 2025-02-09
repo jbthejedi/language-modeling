@@ -79,7 +79,7 @@ class LanguageModel(nn.Module):
     def forward(self, inputs, targets=None):
         b, t = inputs.shape
         tok_emb = self.token_embedding_table(inputs)
-        pos_emb = self.pos_embedding_table(torch.arange(t))
+        pos_emb = self.pos_embedding_table(torch.arange(t, device=device))
         x = tok_emb + pos_emb
         x = self.blocks(x)
         logits = self.lm_head(x)
@@ -117,6 +117,7 @@ def train_test_model(config : Config):
 
     # Train
     model = LanguageModel(config)
+    model = model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     pbar = tqdm(range(config.max_iters), position=0, leave=False)
     for iter_ in pbar:
