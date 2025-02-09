@@ -116,18 +116,15 @@ def train_test_model(config : Config):
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     pbar = tqdm(range(config.max_iters), position=0, leave=False)
     for iter_ in pbar:
-    # for iter_ in range(config.max_iters):
         # Call estimate loss function
         if iter_ % config.eval_iters == 0:
             out = data.estimate_loss(model, config)
-            # print(f"Train Loss {out['train']} Val Loss {out['val']}")
-            pbar.set_postfix(Train_Loss=f"Train Loss {out['train']}", Val_Loss=f" Val Loss {out['val']}")
+            pbar.set_postfix(Train_Loss=out['train'].item(), Val_Loss=out['val'].item())
         xb, yb = data.get_batch('train', config)
         optimizer.zero_grad()
         logits, loss = model(xb, yb)
         loss.backward()
         optimizer.step()
-        # print(f"Loss {loss}")
         
     # Generate
     in_tensor = torch.zeros((1, 1), dtype=torch.long)
